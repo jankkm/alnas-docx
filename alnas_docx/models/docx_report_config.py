@@ -61,7 +61,12 @@ class DocxReportConfig(models.Model):
         "ir.actions.report", string="Related Report Action", readonly=True, copy=False
     )
     docx_merge_mode = fields.Selection(
-        [("composer", "Composer"), ("zip", "Zip"), ("pdf", "PDF")],
+        [
+            ("composer", "Composer"),
+            ("zip", "Zip"),
+            ("pdf", "PDF"),
+            ("pdf_in_zip", "PDF in ZIP"),
+        ],
         string="DOCX Merge Mode",
         default="composer",
         required=True,
@@ -69,7 +74,8 @@ class DocxReportConfig(models.Model):
         help="Mode to be used for merging the DOCX template with the data, \n \
             if 'Composer' is selected, the report will be generated as a single DOCX file, \n \
             if 'Zip' is selected, the report will be generated as a ZIP file containing multiple DOCX files, \n \
-            if 'PDF' is selected, the report will be converted to PDF file.",
+            if 'PDF' is selected, the report will be converted to a PDF file, \n \
+            if 'PDF in ZIP' is selected, the report will be a ZIP file with one PDF per record.",
     )
 
     print_report_name = fields.Char(

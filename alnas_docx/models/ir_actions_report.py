@@ -28,7 +28,12 @@ class IrActionsReport(models.Model):
     report_docx_template = fields.Binary(string="Report DOCX Template")
     report_docx_template_name = fields.Char(string="Report DOCX Template Name")
     docx_merge_mode = fields.Selection(
-        [("composer", "Composer"), ("zip", "Zip"), ("pdf", "PDF")],
+        [
+            ("composer", "Composer"),
+            ("zip", "Zip"),
+            ("pdf", "PDF"),
+            ("pdf_in_zip", "PDF in ZIP"),
+        ],
         string="DOCX Mode",
         default="composer",
     )
@@ -91,7 +96,7 @@ class IrActionsReport(models.Model):
         )
         extra_pdfs = (
             {"before": [], "after": []}
-            if report.docx_merge_mode == "pdf"
+            if report.docx_merge_mode in ("pdf", "pdf_in_zip")
             else None
         )
         context = self._get_rendering_context_docx(
@@ -107,6 +112,16 @@ class IrActionsReport(models.Model):
                 doc_obj,
                 data,
                 context,
+                report_name=report.print_report_name,
+                autoescape=autoescape,
+            )
+        elif report.docx_merge_mode == "pdf_in_zip":
+            return self._render_pdf_in_zip_mode(
+                doc_template,
+                doc_obj,
+                data,
+                context,
+                extra_pdfs,
                 report_name=report.print_report_name,
                 autoescape=autoescape,
             )
@@ -167,29 +182,23 @@ class IrActionsReport(models.Model):
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             for idx, docx_file in enumerate(docx_files):
                 name = safe_eval(report_name, {"object": doc_obj[idx], "time": time})
-                filename = "%s.%s" % (name, "docx")
+                filename = "%s.%s" % (self._sanitize_report_filename(name), "docx")
                 zip_file.writestr(filename, docx_file)
 
         zip_buffer.seek(0)
 
         return zip_buffer.read(), 'zip'
 
-    def _render_docx_to_pdf_mode(
-        self, doc_template, doc_obj, data, context, extra_pdfs, autoescape=False
-    ):
-        docx_file, _ = self._render_composer_mode(
-            doc_template, doc_obj, data, context, autoescape=autoescape
-        )
+    def _sanitize_report_filename(self, name):
+        return name.replace("/", "_").replace("\\", "_")
+
+    def _docx_bytes_to_pdf(self, docx_bytes, extra_pdfs):
         temp_dir = tempfile.mkdtemp()
-        os.makedirs(temp_dir, exist_ok=True)
-
         try:
-            docx_file_path = os.path.join(temp_dir, 'document.docx')
-            with open(docx_file_path, 'wb') as f:
-                f.write(docx_file)
-
+            docx_file_path = os.path.join(temp_dir, "document.docx")
+            with open(docx_file_path, "wb") as f:
+                f.write(docx_bytes)
             pdf_file_path = self.convert_file_to_pdf(docx_file_path, temp_dir)
-
             if not pdf_file_path:
                 raise UserError('PDF conversion failed.')
 
@@ -205,6 +214,29 @@ class IrActionsReport(models.Model):
             )
 
         return main_pdf, 'pdf'
+
+    def _render_pdf_in_zip_mode(
+        self, doc_template, doc_obj, data, context, extra_pdfs, report_name="report", autoescape=False
+    ):
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+            for idx, obj in enumerate(doc_obj):
+                one = doc_obj.filtered(lambda r, oid=obj.id: r.id == oid)
+                pdf_bytes, _ = self._render_docx_to_pdf_mode(
+                    doc_template, one, data, context, extra_pdfs, autoescape=autoescape
+                )
+                name = safe_eval(report_name, {"object": doc_obj[idx], "time": time})
+                filename = "%s.%s" % (self._sanitize_report_filename(name), "pdf")
+                zip_file.writestr(filename, pdf_bytes)
+
+        zip_buffer.seek(0)
+        return zip_buffer.read(), "zip"
+
+    def _render_docx_to_pdf_mode(self, doc_template, doc_obj, data, context, extra_pdfs, autoescape=False):
+        docx_file, _ = self._render_composer_mode(
+            doc_template, doc_obj, data, context, autoescape=autoescape
+        )
+        return self._docx_bytes_to_pdf(docx_file, extra_pdfs)
 
     def convert_file_to_pdf(self, file_path, output_dir):
         uno_url = self._get_libreoffice_uno_url()
