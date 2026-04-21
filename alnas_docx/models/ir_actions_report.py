@@ -32,7 +32,7 @@ class IrActionsReport(models.Model):
             ("composer", "Composer"),
             ("zip", "Zip"),
             ("pdf", "PDF"),
-            ("pdf_in_zip", "PDF in ZIP"),
+            ("pdf_in_zip", "PDF in Zip"),
         ],
         string="DOCX Mode",
         default="composer",

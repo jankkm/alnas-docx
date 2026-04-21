@@ -65,7 +65,7 @@ class DocxReportConfig(models.Model):
             ("composer", "Composer"),
             ("zip", "Zip"),
             ("pdf", "PDF"),
-            ("pdf_in_zip", "PDF in ZIP"),
+            ("pdf_in_zip", "PDF in Zip"),
         ],
         string="DOCX Merge Mode",
         default="composer",
@@ -75,7 +75,7 @@ class DocxReportConfig(models.Model):
             if 'Composer' is selected, the report will be generated as a single DOCX file, \n \
             if 'Zip' is selected, the report will be generated as a ZIP file containing multiple DOCX files, \n \
             if 'PDF' is selected, the report will be converted to a PDF file, \n \
-            if 'PDF in ZIP' is selected, the report will be a ZIP file with one PDF per record.",
+            if 'PDF in Zip' is selected, the report will be a ZIP file with one PDF per record.",
     )
 
     print_report_name = fields.Char(
