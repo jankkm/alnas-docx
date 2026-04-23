@@ -1,6 +1,7 @@
 import base64
 import zipfile
 import os
+import re
 import subprocess
 import tempfile
 import shutil
@@ -182,7 +183,7 @@ class IrActionsReport(models.Model):
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             for idx, docx_file in enumerate(docx_files):
                 name = safe_eval(report_name, {"object": doc_obj[idx], "time": time})
-                filename = "%s.%s" % (self._sanitize_report_filename(name), "docx")
+                filename = f"{self._sanitize_report_filename(name)}.docx"
                 zip_file.writestr(filename, docx_file)
 
         zip_buffer.seek(0)
@@ -190,7 +191,32 @@ class IrActionsReport(models.Model):
         return zip_buffer.read(), 'zip'
 
     def _sanitize_report_filename(self, name):
-        return name.replace("/", "_").replace("\\", "_")
+        # Normalize any incoming value to a basic filename candidate.
+        s = str(name or "").strip()
+        # Remove ASCII control chars that can break archive extraction/tools.
+        s = re.sub(r"[\x00-\x1f\x7f]", "_", s)
+        # Replace cross-platform invalid filename characters.
+        s = re.sub(r'[<>:"/\\|?*]', "_", s)
+        # Avoid troublesome leading/trailing spaces and dots on Windows.
+        s = s.strip(" .")
+        if not s:
+            # Ensure we always produce a non-empty filename.
+            s = "report"
+
+        # Reserved DOS device names cannot be used as filenames.
+        reserved = {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            *(f"COM{i}" for i in range(1, 10)),
+            *(f"LPT{i}" for i in range(1, 10)),
+        }
+        if s.upper() in reserved:
+            s = f"_{s}"
+
+        # Keep names reasonably short for broad ZIP/tool compatibility.
+        return s[:150]
 
     def _docx_bytes_to_pdf(self, docx_bytes, extra_pdfs):
         temp_dir = tempfile.mkdtemp()
@@ -226,7 +252,7 @@ class IrActionsReport(models.Model):
                     doc_template, one, data, context, extra_pdfs, autoescape=autoescape
                 )
                 name = safe_eval(report_name, {"object": doc_obj[idx], "time": time})
-                filename = "%s.%s" % (self._sanitize_report_filename(name), "pdf")
+                filename = f"{self._sanitize_report_filename(name)}.pdf"
                 zip_file.writestr(filename, pdf_bytes)
 
         zip_buffer.seek(0)
