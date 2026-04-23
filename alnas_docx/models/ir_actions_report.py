@@ -190,34 +190,6 @@ class IrActionsReport(models.Model):
 
         return zip_buffer.read(), 'zip'
 
-    def _sanitize_report_filename(self, name):
-        # Normalize any incoming value to a basic filename candidate.
-        s = str(name or "").strip()
-        # Remove ASCII control chars that can break archive extraction/tools.
-        s = re.sub(r"[\x00-\x1f\x7f]", "_", s)
-        # Replace cross-platform invalid filename characters.
-        s = re.sub(r'[<>:"/\\|?*]', "_", s)
-        # Avoid troublesome leading/trailing spaces and dots on Windows.
-        s = s.strip(" .")
-        if not s:
-            # Ensure we always produce a non-empty filename.
-            s = "report"
-
-        # Reserved DOS device names cannot be used as filenames.
-        reserved = {
-            "CON",
-            "PRN",
-            "AUX",
-            "NUL",
-            *(f"COM{i}" for i in range(1, 10)),
-            *(f"LPT{i}" for i in range(1, 10)),
-        }
-        if s.upper() in reserved:
-            s = f"_{s}"
-
-        # Keep names reasonably short for broad ZIP/tool compatibility.
-        return s[:150]
-
     def _docx_bytes_to_pdf(self, docx_bytes, extra_pdfs):
         temp_dir = tempfile.mkdtemp()
         try:
@@ -248,8 +220,18 @@ class IrActionsReport(models.Model):
         with zipfile.ZipFile(zip_buffer, "w") as zip_file:
             for idx, obj in enumerate(doc_obj):
                 one = doc_obj.filtered(lambda r, oid=obj.id: r.id == oid)
+                # Keep add_pdf() side effects isolated per record in ZIP mode.
+                record_extra_pdfs = {"before": [], "after": []}
+                record_context = self._get_rendering_context_docx(
+                    doc_template=doc_template, extra_pdfs=record_extra_pdfs
+                )
                 pdf_bytes, _ = self._render_docx_to_pdf_mode(
-                    doc_template, one, data, context, extra_pdfs, autoescape=autoescape
+                    doc_template,
+                    one,
+                    data,
+                    record_context,
+                    record_extra_pdfs,
+                    autoescape=autoescape,
                 )
                 name = safe_eval(report_name, {"object": doc_obj[idx], "time": time})
                 filename = f"{self._sanitize_report_filename(name)}.pdf"
@@ -310,6 +292,34 @@ class IrActionsReport(models.Model):
             ) from exc
         with open(output_file_path, "wb") as output_file:
             output_file.write(response.content)
+
+    def _sanitize_report_filename(self, name):
+        # Normalize any incoming value to a basic filename candidate.
+        s = str(name or "").strip()
+        # Remove ASCII control chars that can break archive extraction/tools.
+        s = re.sub(r"[\x00-\x1f\x7f]", "_", s)
+        # Replace cross-platform invalid filename characters.
+        s = re.sub(r'[<>:"/\\|?*]', "_", s)
+        # Avoid troublesome leading/trailing spaces and dots on Windows.
+        s = s.strip(" .")
+        if not s:
+            # Ensure we always produce a non-empty filename.
+            s = "report"
+
+        # Reserved DOS device names cannot be used as filenames.
+        reserved = {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            *(f"COM{i}" for i in range(1, 10)),
+            *(f"LPT{i}" for i in range(1, 10)),
+        }
+        if s.upper() in reserved:
+            s = f"_{s}"
+
+        # Keep names reasonably short for broad ZIP/tool compatibility.
+        return s[:150]
 
     def _get_libreoffice_path(self):
         libreoffice = self.env["ir.config_parameter"].sudo().get_param("libreoffice.path")
