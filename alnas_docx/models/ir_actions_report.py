@@ -4,8 +4,10 @@ import os
 import subprocess
 import tempfile
 import shutil
+from urllib.parse import urlparse
 from io import BytesIO
 from functools import partial
+import requests
 from docx import Document
 from docxtpl import DocxTemplate
 from docxcompose.composer import Composer
@@ -205,8 +207,15 @@ class IrActionsReport(models.Model):
         return main_pdf, 'pdf'
 
     def convert_file_to_pdf(self, file_path, output_dir):
-        librepath = self._get_libreoffice_path()
-        subprocess.run([librepath, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, file_path])
+        uno_url = self._get_libreoffice_uno_url()
+        if uno_url:
+            self._convert_file_to_pdf_uno(file_path, output_dir, uno_url)
+        else:
+            librepath = self._get_libreoffice_path()
+            subprocess.run(
+                [librepath, '--headless', '--convert-to', 'pdf', '--outdir', output_dir, file_path],
+                check=True,
+            )
         pdf_file_name = os.path.splitext(os.path.basename(file_path))[0] + '.pdf' 
         pdf_file_path = os.path.join(output_dir, pdf_file_name)        
         if os.path.exists(pdf_file_path):
@@ -214,10 +223,43 @@ class IrActionsReport(models.Model):
         else:
             return None
 
+    def _convert_file_to_pdf_uno(self, file_path, output_dir, uno_url):
+        base_url = uno_url.strip().rstrip("/")
+        if "://" not in base_url:
+            base_url = "http://%s" % base_url
+        parsed = urlparse(base_url)
+        endpoint = base_url if parsed.path and parsed.path != "/" else "%s/request" % base_url
+        output_file_path = os.path.join(
+            output_dir,
+            "%s.pdf" % os.path.splitext(os.path.basename(file_path))[0],
+        )
+        try:
+            with open(file_path, "rb") as input_file:
+                response = requests.post(
+                    endpoint,
+                    files={"file": (os.path.basename(file_path), input_file)},
+                    data={"convert-to": "pdf"},
+                    timeout=120,
+                )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise UserError(
+                _(
+                    "Failed to convert via UNO URL '%(url)s'. "
+                    "Check that the URL is reachable from the Odoo runtime."
+                )
+                % {"url": endpoint}
+            ) from exc
+        with open(output_file_path, "wb") as output_file:
+            output_file.write(response.content)
+
     def _get_libreoffice_path(self):
-        libreoffice = self.env.ref('alnas_docx.default_libreoffice_path')
-        if not libreoffice and not libreoffice.value:
+        libreoffice = self.env["ir.config_parameter"].sudo().get_param("libreoffice.path")
+        if not libreoffice:
             raise ValidationError('Libreoffice path doesnt exits, \n \
                 please set in Settings => Technical => Parameters => System Parameters => default_libreoffice_path')
             
-        return libreoffice.value
+        return libreoffice
+
+    def _get_libreoffice_uno_url(self):
+        return self.env["ir.config_parameter"].sudo().get_param("libreoffice.uno.url", "").strip()

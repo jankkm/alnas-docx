@@ -5,5 +5,9 @@
             <field name="key">libreoffice.path</field> 
             <field name="value">/usr/bin/libreoffice</field> 
         </record>
+        <record id="default_libreoffice_uno_url" model="ir.config_parameter">
+            <field name="key">libreoffice.uno.url</field> 
+            <field name="value"></field> 
+        </record>
     </data>
 </odoo>
