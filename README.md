@@ -55,10 +55,21 @@ There are three modes for generating `.docx` reports:
 
 #### PDF Mode
 
-If you want to use the "pdf" option, ensure that LibreOffice is installed. Then set the LibreOffice path in **Settings** => **Technical** => **Parameters** => **System Parameters**, and search for the key `default_libreoffice_path`. Set the value according to your LibreOffice installation path:
+If you want to use the "pdf" option, choose one of these backends and configure it in **Settings** => **Technical** => **Parameters** => **System Parameters**:
 
-- **Linux**: `/usr/bin/libreoffice`
-- **Windows**: `C:\Program Files\LibreOffice\program\soffice.exe`
+1. **LibreOffice Binary**
+   - `libreoffice.path`: path to LibreOffice binary
+   - **Linux**: `/usr/bin/libreoffice`
+   - **Windows**: `C:\Program Files\LibreOffice\program\soffice.exe`
+
+2. **UNO REST API**
+   - `libreoffice.uno.url`: UNO REST API URL
+   - Examples: `http://127.0.0.1:2004` or `http://127.0.0.1:2004/request`
+
+Selection rule:
+
+- If `libreoffice.uno.url` has a value, UNO REST API is used.
+- If `libreoffice.uno.url` is empty, LibreOffice Binary is used.
 
 In PDF mode, the template also exposes `add_pdf` so you can merge additional PDF files with the PDF produced from your DOCX (for example cover pages or terms appended after the report). The main report PDF sits between any PDFs added with `position='before'` and those with `position='after'` (or the default). Only valid PDF data is accepted; add one PDF per call.
 
