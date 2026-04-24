@@ -73,6 +73,10 @@ Selection rule:
 
 In PDF mode, the template also exposes `add_pdf` so you can merge additional PDF files with the PDF produced from your DOCX (for example cover pages or terms appended after the report). The main report PDF sits between any PDFs added with `position='before'` and those with `position='after'` (or the default). Only valid PDF data is accepted; add one PDF per call.
 
+#### PDF in Zip mode
+
+When using **PDF in Zip** output, each selected record is rendered to PDF and added to the ZIP as a `.pdf` file (not `.docx`). Any extra PDFs queued with `add_pdf` are still merged into each record's final PDF before it is written into the archive
+
 ## Credits
 
 Special thanks to [Salvo](https://github.com/salvorapi) for helping to update the code from Odoo 16 to Odoo 17.
