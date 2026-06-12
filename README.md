@@ -27,6 +27,7 @@ To call and write the field name, use the following format: `{{docs.field_name}}
 
 - `{{spelled_out(docs.numeric_field)}}`: Spell out numbers
 - `{{formatdate(docs.date_field)}}`: Format dates
+- `{{format_datetime(docs.datetime_field)}}`: Format datetime fields with correct tz, defaults to UTC. Example: {{ format_datetime(docs.your_datetime_field, 'Europe/Berlin', '%d.%m.%Y %H:%M') }}
 - `{{parsehtml(docs.html_field)}}` : Render HTML content as plain text
 - `{{p html2docx(docs.html_field)}}`: Render HTML as subdocument
 - `{{convert_currency(docs.monetary_field, docs.currency_id)}}`: Show monetary field
@@ -37,6 +38,8 @@ To call and write the field name, use the following format: `{{docs.field_name}}
 - `{{replace_media('file_name_in_word', docs.image_field)}}`: Unlike replace_pic() method, dummy_header_pic.jpg MUST exist in the template directory when rendering and saving the generated docx.
 - `{{replace_embedded('file_name_in_word', docs.binary_field)}}`: It works like medias replacement, except it is for embedded objects like embedded docx.
 - `{{replace_zipname('file_path_in_word', docs.binary_field)}}`: replace_embedded() may not work on other documents than embedded docx. Instead, you should use zipname replacement.
+- `linked_attachments(docs)`: Returns binary attachments linked to the record (`ir.attachment` with `res_model` / `res_id` matching `docs`). Use in a loop to merge each file, e.g. `{% for att in linked_attachments(docs) %}{{ p add_subdoc(att.datas) }}{% endfor %}`.
+- `{{ add_pdf(docs.pdf_attachment) }}`: PDF mode only. Queue an extra PDF to merge with the report output (after the main document by default). Use `position='before'` or `position='after'` to control order. The source can be a single `ir.attachment` record, raw PDF bytes, or base64-encoded PDF data. Optional `label` helps identify the file in validation errors. The call returns an empty string; merging happens when the final PDF is built.
 
 Note: The functions will be updated as needed.
 
@@ -44,18 +47,40 @@ lang default is lang='id_ID' change if need, example = `{{spelled_out(docs.numer
 
 ### Docx Mode
 
-There are three modes for generating `.docx` reports:
+There are four output modes for DOCX-based reports:
 
-1. **composer**: Generate a `.docx` file
-2. **zip**: Generate a `.zip` containing the `.docx` file
-3. **pdf**: Convert the `.docx` file to PDF using LibreOffice
+1. **composer**: Generate a single `.docx` file
+2. **zip**: Generate a `.zip` containing one `.docx` per record
+3. **pdf**: Convert the report to a single PDF using LibreOffice
+4. **pdf_in_zip**: Generate a `.zip` containing one PDF per record (each record is converted via LibreOffice)
 
 #### PDF Mode
 
-If you want to use the "pdf" option, ensure that LibreOffice is installed. Then set the LibreOffice path in **Settings** => **Technical** => **Parameters** => **System Parameters**, and search for the key `default_libreoffice_path`. Set the value according to your LibreOffice installation path:
+If you want to use the "pdf" option, choose one of these backends and configure it in **Settings** => **Technical** => **Parameters** => **System Parameters**:
 
-- **Linux**: `/usr/bin/libreoffice`
-- **Windows**: `C:\Program Files\LibreOffice\program\soffice.exe`
+1. **LibreOffice Binary**
+   - `libreoffice.path`: path to LibreOffice binary
+   - **Linux**: `/usr/bin/libreoffice`
+   - **Windows**: `C:\Program Files\LibreOffice\program\soffice.exe`
+
+2. **UNO REST API**
+   - `libreoffice.uno.url`: UNO REST API URL
+   - Examples: `http://127.0.0.1:2004` or `http://127.0.0.1:2004/request`
+
+Selection rule:
+
+- If `libreoffice.uno.url` has a value, UNO REST API is used.
+- If `libreoffice.uno.url` is empty, LibreOffice Binary is used.
+
+In PDF mode, the template also exposes `add_pdf` so you can merge additional PDF files with the PDF produced from your DOCX (for example cover pages or terms appended after the report). The main report PDF sits between any PDFs added with `position='before'` and those with `position='after'` (or the default). Only valid PDF data is accepted; add one PDF per call.
+
+#### PDF in Zip mode
+
+When using **PDF in Zip** output, each selected record is rendered to PDF and added to the ZIP as a `.pdf` file (not `.docx`). Any extra PDFs queued with `add_pdf` are still merged into each record's final PDF before it is written into the archive
+
+## Credits
+
+Special thanks to [Salvo](https://github.com/salvorapi) for helping to update the code from Odoo 16 to Odoo 17.
 
 ## Feedback
 

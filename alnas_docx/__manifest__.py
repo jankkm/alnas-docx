@@ -6,6 +6,7 @@
         Simple module to generate report with DOCX template
     """,
     "author": "Ali Ns",
+    "maintainers": ["salvorapi"],
     "website": "https://github.com/alienyst",
     "images": ["static/description/banner.png"],
     "category": "Technical",

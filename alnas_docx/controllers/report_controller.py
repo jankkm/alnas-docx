@@ -106,7 +106,7 @@ class DocxReportController(ReportController):
     def _get_filename_by_report_type(self, report, name):
         if report.docx_merge_mode == 'composer':
             filename = "%s.%s" % (name, "docx")
-        elif report.docx_merge_mode == 'zip':
+        elif report.docx_merge_mode in ('zip', 'pdf_in_zip'):
             filename = "%s.%s" % (name, "zip")
         else:
             filename = "%s.%s" % (name, "pdf")
