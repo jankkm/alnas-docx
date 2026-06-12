@@ -71,7 +71,12 @@ class DocxReportConfig(models.Model):
         "ir.actions.report", string="Related Report Action", readonly=True, copy=False
     )
     docx_merge_mode = fields.Selection(
-        [("composer", "Composer"), ("zip", "Zip"), ("pdf", "PDF")],
+        [
+            ("composer", "Composer"),
+            ("zip", "Zip"),
+            ("pdf", "PDF"),
+            ("pdf_in_zip", "PDF in Zip"),
+        ],
         string="DOCX Merge Mode",
         default="composer",
         required=True,
@@ -79,13 +84,20 @@ class DocxReportConfig(models.Model):
         help="Mode to be used for merging the DOCX template with the data, \n \
             if 'Composer' is selected, the report will be generated as a single DOCX file, \n \
             if 'Zip' is selected, the report will be generated as a ZIP file containing multiple DOCX files, \n \
-            if 'PDF' is selected, the report will be converted to PDF file.",
+            if 'PDF' is selected, the report will be converted to a PDF file, \n \
+            if 'PDF in Zip' is selected, the report will be a ZIP file with one PDF per record.",
     )
 
     print_report_name = fields.Char(
         string="Print Report Name",
         compute="_compute_print_report_name",
+        store=True,
         help="Filename generated for the report",
+    )
+    print_report_name_override = fields.Boolean(
+        string="Override Print Report Name",
+        default=False,
+        help="This lets you manually edit the report name. Old and new python string formatting is supported. Use with caution!",
     )
     autoescape = fields.Boolean(
         string="Autoescape",
@@ -93,9 +105,11 @@ class DocxReportConfig(models.Model):
         help="Enable autoescape for special character like <, > and &.",
     )
 
-    @api.depends("model_id", "field_id", "prefix")
+    @api.depends("model_id", "field_id", "prefix", "print_report_name_override")
     def _compute_print_report_name(self):
         for rec in self:
+            if rec.print_report_name_override:
+                continue
             if rec.prefix:
                 rec.print_report_name = f"'{rec.prefix} %s' % object.{rec.field_id.name} if object.{rec.field_id.name} else ''"
             else:
