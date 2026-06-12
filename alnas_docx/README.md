@@ -47,11 +47,12 @@ lang default is lang='id_ID' change if need, example = `{{spelled_out(docs.numer
 
 ### Docx Mode
 
-There are three modes for generating `.docx` reports:
+There are four output modes for DOCX-based reports:
 
-1. **composer**: Generate a `.docx` file
-2. **zip**: Generate a `.zip` containing the `.docx` file
-3. **pdf**: Convert the `.docx` file to PDF using LibreOffice
+1. **composer**: Generate a single `.docx` file
+2. **zip**: Generate a `.zip` containing one `.docx` per record
+3. **pdf**: Convert the report to a single PDF using LibreOffice
+4. **pdf_in_zip**: Generate a `.zip` containing one PDF per record (each record is converted via LibreOffice)
 
 #### PDF Mode
 
